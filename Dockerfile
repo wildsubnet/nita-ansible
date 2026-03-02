@@ -23,17 +23,25 @@ ENV REQUIREMENTS="requirements.yml"
 ENV PLAYBOOK="playbook.yml"
 
 RUN apk add --no-cache sudo \
-    python3 py3-pip openssl ca-certificates git \
+    python3 py3-pip py3-virtualenv \
+    openssl ca-certificates git \
     gcc libxml2-dev libxslt-dev musl-dev \
     bash python3-dev openssh expect sshpass \
     libffi-dev openssl-dev build-base curl vim \
     ansible-core \
     ansible
 
+
 # copy requirements.txt for Python and install
 WORKDIR /tmp
 COPY requirements.txt requirements.txt
-RUN pip3 install --break-system-packages -r requirements.txt
+# RUN pip3 install --break-system-packages -r requirements.txt
+# Setup python virtual environment
+
+RUN python3 -m venv /opt/venv \
+ && /opt/venv/bin/pip install --upgrade pip setuptools wheel \
+ && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+ENV PATH="/opt/venv/bin:$PATH"
 
 #RUN ansible-galaxy install Juniper.junos -p /etc/ansible/roles/
 COPY requirements.yml .
