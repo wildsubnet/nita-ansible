@@ -15,4 +15,6 @@
 
 cd ansible-ee
 cp -R ../network-roles context/
-ansible-builder build -v 3 --tag "juniper/nita-ansible-ee:22.8-2" --container-runtime docker -f nita-ansible-ee.yml
+ansible-builder build -v 3 \
+	--tag "juniper/nita-ansible-ee:$(tr -d '\r\n[:space:]' < ../VERSION.txt)"\
+       	--container-runtime docker -f nita-ansible-ee.yml
