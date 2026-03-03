@@ -13,4 +13,4 @@
 #
 # ********************************************************
 
-docker build -t juniper/nita-ansible:22.8-2 .
+docker build -t juniper/nita-ansible:$(tr -d '\r\n[:space:]' < VERSION.txt) .
