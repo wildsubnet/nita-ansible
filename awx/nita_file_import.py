@@ -12,6 +12,26 @@
 # Third-Party Code: This code may depend on other components under separate copyright notice and license terms. Your use of the source code for those components is subject to the terms and conditions of the respective license as noted in the Third-Party source code file.
 #
 # ********************************************************
+"""Bootstrap AWX with NITA project data from a filesystem layout.
+
+This module reads a NITA project folder structure from disk and uses the
+``nita_awx_functions`` helpers to programmatically configure an AWX
+(Ansible Automation Platform) instance.  When executed directly, it:
+
+1. Creates an execution environment, organisation, and project in AWX.
+2. Walks each sub-directory of the NITA project folder, treating each as a
+   separate AWX inventory.
+3. Imports hosts from ``host_vars/*.yaml`` files, including management IP and
+   variable data.
+4. Creates a build job template sourced from the ``build/`` playbook directory.
+5. Creates inventory groups from the Ansible ``hosts`` file and links hosts and
+   child groups accordingly.
+6. Applies ``group_vars/all.yaml`` as inventory-level variables when present.
+
+The module also exposes three reusable helper functions — ``get_yaml_files``,
+``get_ansible_hosts``, and ``list_directories`` — that abstract filesystem
+discovery operations used by the bootstrap logic.
+"""
 import os
 import glob
 import yaml
@@ -25,6 +45,23 @@ from nita_awx_functions import *
 
 
 def get_yaml_files(project_folder,subfolder):
+    """Return a list of YAML file paths found in a named sub-folder of a project.
+
+    Constructs a glob pattern of the form
+    ``<project_folder>/<subfolder>/*.yaml`` and returns all matching paths.
+
+    Args:
+        project_folder (str): Absolute or relative path to the root of the
+            project directory.
+        subfolder (str): Name of the sub-directory to search within
+            ``project_folder`` (e.g. ``'host_vars'``, ``'group_vars'``,
+            ``'build'``).
+
+    Returns:
+        list[str]: A list of absolute file paths for every ``*.yaml`` file
+        found in ``<project_folder>/<subfolder>``.  Returns an empty list if
+        no files match.
+    """
     # Construct the path pattern for YAML files in host_vars
     yaml_files_pattern = os.path.join(project_folder, subfolder, '*.yaml')
     
@@ -35,6 +72,27 @@ def get_yaml_files(project_folder,subfolder):
 
 
 def get_ansible_hosts(project_folder):
+    """Parse an Ansible ``hosts`` inventory file into a dict of groups and members.
+
+    Reads the file ``<project_folder>/hosts``, ignoring blank lines and
+    comment lines.  Section headers of the form ``[group_name]`` or
+    ``[group_name:children]`` become dictionary keys; subsequent non-header
+    lines are collected as the list of members for that key.
+
+    Args:
+        project_folder (str): Absolute or relative path to the directory that
+            contains the ``hosts`` file.
+
+    Returns:
+        dict[str, list[str]]: A mapping where each key is a group name
+        (including any ``:children`` or ``:vars`` suffix as-is) and the
+        corresponding value is the list of host or child-group names that
+        belong to that group.
+
+    Raises:
+        FileNotFoundError: If ``<project_folder>/hosts`` does not exist.
+        OSError: If the file cannot be opened for reading.
+    """
     host_file = os.path.join(project_folder, 'hosts')
     with open(host_file, 'r') as file:
         content = file.read()
@@ -54,6 +112,23 @@ def get_ansible_hosts(project_folder):
      
 
 def list_directories(folder_path):
+    """Return the names of all immediate sub-directories within a folder.
+
+    Uses ``os.listdir`` combined with ``os.path.isdir`` to filter out plain
+    files.  Only the bare directory names (not full paths) are returned.
+
+    Args:
+        folder_path (str): Absolute or relative path to the directory to
+            inspect.
+
+    Returns:
+        list[str]: A list of directory names found directly inside
+        ``folder_path``.  Returns an empty list if no sub-directories exist.
+
+    Raises:
+        FileNotFoundError: If ``folder_path`` does not exist.
+        OSError: If the directory cannot be listed.
+    """
     directories = [d for d in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, d))]
     return directories
 

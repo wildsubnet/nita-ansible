@@ -8,7 +8,7 @@ This is being used to test the AWX execution environment. AWX requires kubernete
 
 <b>nita_awx_functions.py</b> - Front end function calls to add/update elements inside of AWX. Used by nita_file_import.py.
 
-<b>nita_file_import.py</b> - Recursively traverses folders in a folder called ``nita_project`` in the AWX host OS working directory (assumes /data/projects) and creates NITA project and uploads host information to AWX.
+<b>nita_file_import.py</b> - Recursively traverses folders in a folder called ``nita_project`` in the AWX host OS working directory (assumes /data/projects) and creates NITA project and uploads host information to AWX. You may need to either change the location in the script by modifying the global variable or copy the NITA files over to /data/projects.
 
 Other files are used to install AWX.
 
