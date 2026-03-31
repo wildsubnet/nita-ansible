@@ -12,6 +12,32 @@
 #
 # ********************************************************
 
+FROM alpine:3.23.3 AS builder
+
+RUN apk add --no-cache \
+    python3 py3-pip py3-virtualenv \
+    gcc libxml2-dev libxslt-dev musl-dev python3-dev \
+    libffi-dev openssl-dev build-base \
+    bash ansible-core
+
+WORKDIR /tmp
+COPY requirements.txt requirements.txt
+RUN python3 -m venv /opt/venv \
+ && /opt/venv/bin/pip install --upgrade pip setuptools wheel \
+ && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+COPY requirements.yml requirements.yml
+RUN ansible-galaxy collection install -r requirements.yml
+
+COPY network-roles network-roles
+RUN cd network-roles/ebgp-ip-fabric && bash install.sh \
+ && cd /tmp/network-roles/evpn-vxlan-common && bash install.sh \
+ && cd /tmp/network-roles/evpn-vxlan-fi && bash install.sh \
+ && cd /tmp/network-roles/evpn-vxlan-erb && bash install.sh \
+ && cd /tmp/network-roles/evpn-vxlan-hb && bash install.sh \
+ && cd /tmp/network-roles/evpn-vxlan-sb && bash install.sh
+
+
 FROM alpine:3.23.3
 
 # ==> Specify Python requirements filename;   default = "requirements.txt"
@@ -22,38 +48,19 @@ ENV PYREQS="requirements.txt"
 ENV REQUIREMENTS="requirements.yml"
 ENV PLAYBOOK="playbook.yml"
 
-RUN apk add --no-cache sudo \
-    python3 py3-pip py3-virtualenv \
+RUN apk add --no-cache \
+    sudo python3 \
     openssl ca-certificates git \
-    gcc libxml2-dev libxslt-dev musl-dev \
-    bash python3-dev openssh expect sshpass \
-    libffi-dev openssl-dev build-base curl vim \
-    ansible-core \
-    ansible
+    bash openssh expect sshpass \
+    curl vim \
+    ansible-core ansible \
+    libxml2 libxslt
 
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /root/.ansible /root/.ansible
+COPY --from=builder /etc/ansible/roles /etc/ansible/roles
 
-# copy requirements.txt for Python and install
-WORKDIR /tmp
-COPY requirements.txt requirements.txt
-# RUN pip3 install --break-system-packages -r requirements.txt
-# Setup python virtual environment
-
-RUN python3 -m venv /opt/venv \
- && /opt/venv/bin/pip install --upgrade pip setuptools wheel \
- && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 ENV PATH="/opt/venv/bin:$PATH"
-
-#RUN ansible-galaxy install Juniper.junos -p /etc/ansible/roles/
-COPY requirements.yml .
-RUN ansible-galaxy collection install -r requirements.yml
-
-COPY network-roles network-roles
-RUN cd network-roles/ebgp-ip-fabric && bash install.sh
-RUN cd network-roles/evpn-vxlan-common && bash install.sh
-RUN cd network-roles/evpn-vxlan-fi && bash install.sh
-RUN cd network-roles/evpn-vxlan-erb && bash install.sh
-RUN cd network-roles/evpn-vxlan-hb && bash install.sh
-RUN cd network-roles/evpn-vxlan-sb && bash install.sh
 
 WORKDIR /project
 VOLUME /project
