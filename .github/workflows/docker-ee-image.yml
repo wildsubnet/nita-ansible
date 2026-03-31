@@ -12,15 +12,12 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     permissions:
       contents: read
       packages: write
 
     steps:
-    - uses: actions/checkout@v4.2.2
+    - uses: actions/checkout@v6.0.2
 
     - name: Install ansible-builder
       run: pip install ansible-builder
@@ -39,7 +36,7 @@ jobs:
 
     - name: Log in to GitHub Container Registry
       if: github.event_name == 'push'
-      uses: docker/login-action@v3.4.0
+      uses: docker/login-action@v4
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
