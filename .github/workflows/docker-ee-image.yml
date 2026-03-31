@@ -1,0 +1,53 @@
+name: Docker EE Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build-ee:
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install ansible-builder
+      run: pip install ansible-builder
+
+    - name: Copy network-roles into ansible-builder context
+      run: cp -R network-roles ansible-ee/context/
+
+    - name: Build the EE image
+      working-directory: ansible-ee
+      run: |
+        VERSION=$(tr -d '\r\n[:space:]' < ../VERSION.txt)
+        ansible-builder build -v 3 \
+          --tag "juniper/nita-ansible-ee:${VERSION}" \
+          --container-runtime docker \
+          -f nita-ansible-ee.yml
+
+    - name: Log in to GitHub Container Registry
+      if: github.event_name == 'push'
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Push to GitHub Container Registry
+      if: github.event_name == 'push'
+      run: |
+        VERSION=$(tr -d '\r\n[:space:]' < VERSION.txt)
+        IMAGE=ghcr.io/${{ github.repository }}-ee
+        docker tag juniper/nita-ansible-ee:${VERSION} ${IMAGE,,}:${VERSION}
+        docker tag juniper/nita-ansible-ee:${VERSION} ${IMAGE,,}:latest
+        docker push ${IMAGE,,}:${VERSION}
+        docker push ${IMAGE,,}:latest
